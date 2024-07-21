@@ -1,0 +1,16 @@
+<MODULE>2023/09/25 16:05:43 [DEBUG]zlogger_test.go:30: ===> zinx debug content ~~666
+<MODULE>2023/09/25 16:05:43 [DEBUG]zlogger_test.go:31: ===> zinx debug content ~~888
+<MODULE>2023/09/25 16:05:43 [ERROR]zlogger_test.go:32: ===> zinx Error!!!! ~~~555~~~
+<MODULE>2023/09/25 16:05:43 [ERROR]zlogger_test.go:38: ===> zinx Error  after debug close !!!!
+<MODULE>2023/09/25 16:31:02 [DEBUG]zlogger_test.go:30: ===> zinx debug content ~~666
+<MODULE>2023/09/25 16:31:02 [DEBUG]zlogger_test.go:31: ===> zinx debug content ~~888
+<MODULE>2023/09/25 16:31:02 [ERROR]zlogger_test.go:32: ===> zinx Error!!!! ~~~555~~~
+<MODULE>2023/09/25 16:31:02 [ERROR]zlogger_test.go:38: ===> zinx Error  after debug close !!!!
+<MODULE>2023/09/25 16:31:14 [DEBUG]zlogger_test.go:30: ===> zinx debug content ~~666
+<MODULE>2023/09/25 16:31:14 [DEBUG]zlogger_test.go:31: ===> zinx debug content ~~888
+<MODULE>2023/09/25 16:31:14 [ERROR]zlogger_test.go:32: ===> zinx Error!!!! ~~~555~~~
+<MODULE>2023/09/25 16:31:14 [ERROR]zlogger_test.go:38: ===> zinx Error  after debug close !!!!
+<MODULE>2023/09/25 16:32:08 [DEBUG]zlogger_test.go:30: ===> zinx debug content ~~666
+<MODULE>2023/09/25 16:32:08 [DEBUG]zlogger_test.go:31: ===> zinx debug content ~~888
+<MODULE>2023/09/25 16:32:08 [ERROR]zlogger_test.go:32: ===> zinx Error!!!! ~~~555~~~
+<MODULE>2023/09/25 16:32:08 [ERROR]zlogger_test.go:38: ===> zinx Error  after debug close !!!!

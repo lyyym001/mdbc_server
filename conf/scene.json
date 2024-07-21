@@ -1,0 +1,10 @@
+{
+  "10001":
+  {
+      "name" : "新手村",
+      "bornPos" : "10,10,0",
+      "bornRadius" : 10,
+      "rotateY" : 0,
+      "rotateYRandom" : true
+  }
+}
