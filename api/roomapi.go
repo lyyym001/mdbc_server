@@ -26,7 +26,7 @@ func (ra *RoomApi) Handle(request ziface.IRequest) {
 		return
 	}
 	//3. 根据pID得到player对象
-	fmt.Println("pID ---  = ", pID)
+	//fmt.Println("pID ---  = ", pID)
 	player := core.WorldMgrObj.GetPlayerByPID(pID.(int32))
 	if player == nil {
 		return

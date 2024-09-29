@@ -1,0 +1,4 @@
+2024/09/29 14:20:11 [DEBUG]server.go:101: 1.SetupGinServer
+2024/09/29 14:20:11 [DEBUG]server.go:104: 5.License InteractionServices Start
+2024/09/29 14:20:11 [DEBUG]server.go:123: 6.InteractionServices run in 192.168.0.22 , port = 10106 
+2024/09/29 14:20:11 [DEBUG]server.go:135:  GinServices run in = 192.168.0.22:8080

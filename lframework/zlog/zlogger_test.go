@@ -1,7 +1,7 @@
 package zlog_test
 
 import (
-	"mdbc_server/lframework/git/aceld/zinx/zlog"
+	"mdbc_server/lframework/zlog"
 	"testing"
 )
 

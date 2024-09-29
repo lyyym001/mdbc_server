@@ -1,0 +1,20 @@
+app:
+  version: 1.0
+  host: 192.168.0.22
+  name: "大空间对抗交互系统"
+  port: 10106
+  ginPort: 8080
+  maxConn: 3000
+  workerPoolSize: 10
+  logFile: ./server.log
+  #SqlitePath: "db/space"
+  maxPacketSize: 0
+conf:
+  blood: 100
+  readyTime: 3
+  hList: { h1: 二饼 }
+  lList: {  }
+mysql:
+  #dns:  "root:root@tcp(127.0.0.1:3306)/multiattdemo?charset=utf8mb4&parseTime=True&loc=Local"
+  dns:  "root:root@tcp(192.168.0.9:3306)/multiattdemo?charset=utf8mb4&parseTime=True&loc=Local"
+  #dns:  "fdroot:3dbutfly@alirds@tcp(rm-2zehp1p514j6761zobo.mysql.rds.aliyuncs.com:3306)/mspace?charset=utf8mb4&parseTime=True&loc=Local"

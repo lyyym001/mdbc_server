@@ -1,17 +1,17 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"log"
 	"mdbc_server/api"
 	"mdbc_server/core"
 	"mdbc_server/gameutils"
+	"mdbc_server/internal/config"
+	"mdbc_server/internal/server/router"
 	"mdbc_server/lframework/utils"
 	"mdbc_server/lframework/ziface"
+	"mdbc_server/lframework/zlog"
 	"mdbc_server/lframework/znet"
-	"os"
-	"strconv"
-	"strings"
 )
 
 //业务Api 这里定义跟客户都安通信的业务关联
@@ -70,83 +70,76 @@ func OnConnectionLost(conn ziface.IConnection) {
 
 func main() {
 
-	//for i, v := range os.Args {
-	//	fmt.Printf("args[%v]=%v\n", i, v)
-	//}
-	var AppID string = "1_1"
+	var AppID string = "MultiAttDemo"
+	readed := config.Read()
+	if readed {
+		utils.GlobalObject.Host = config.YamlConfig.App.Host
+		utils.GlobalObject.Name = config.YamlConfig.App.Name
+		utils.GlobalObject.TCPPort = config.YamlConfig.App.Port
+		utils.GlobalObject.MaxConn = config.YamlConfig.App.MaxConn
+		utils.GlobalObject.WorkerPoolSize = config.YamlConfig.App.WorkerPoolSize
+		utils.GlobalObject.LogFile = config.YamlConfig.App.LogFile
+		utils.GlobalObject.MaxPacketSize = config.YamlConfig.App.MaxPacketSize
+		fmt.Println("ready to setup server=", utils.GlobalObject.Name)
 
-	if len(os.Args) > 1 {
-		//命名中带有参数“本地服务ip$TcpPort$UdpPort”
-		//var res []string
-		res := strings.Split(os.Args[1], "$")
-		utils.GlobalObject.Host = res[0]
-		utils.GlobalObject.TCPPort, _ = strconv.Atoi(res[1])
-		utils.GlobalObject.UdpPort, _ = strconv.Atoi(res[2])
-		AppID = res[3]
-		fmt.Println("os.Args = ", os.Args)
+		//开启日志
+		if utils.GlobalObject.LogFile != "" {
+			fmt.Println("log-> dir= ", utils.GlobalObject.LogDir, " file= ", utils.GlobalObject.LogFile)
+			zlog.SetLogFile(utils.GlobalObject.LogDir, utils.GlobalObject.LogFile)
+		}
+		//if g.LogDebugClose == true {
+		//	zlog.CloseDebug()
+		//}
+
+		//
+		//livekitclient.NewRoomClient()
+		//zlog.Debug("1.db init")
+		//models.NewDB()
+		//zlog.Debug("2.db inited")
+		//启动ginServices
+		//zlog.Debug("3.License GinServer Start")
+		zlog.Debug("1.SetupGinServer")
+		go GinServices()
+		//启动InteractionServices
+		zlog.Debug("5.License InteractionServices Start")
+		InteractionServices(AppID)
 	}
 
-	fmt.Println("Host    = ", utils.GlobalObject.Host)
-	fmt.Println("TCPPort = ", utils.GlobalObject.TCPPort)
-	fmt.Println("UdpPort = ", utils.GlobalObject.UdpPort)
-	fmt.Println("LogDir  = ", utils.GlobalObject.LogDir)
-	fmt.Println("LogFile = ", utils.GlobalObject.LogFile)
-	fmt.Println("sqlite  = ", utils.GlobalObject.SqlitePath)
-	//fmt.Println("LanServer AppID = ",AppID)
-	//zlog.Debug("Hello")
+}
+
+func InteractionServices(AppID string) {
+
 	//从世界启动app
 	core.WorldMgrObj.StartApp(AppID)
 	//创建服务器句柄
 	s := znet.NewServer()
-
 	//注册客户端连接建立和丢失函数
 	s.SetOnConnStart(OnConnecionAdd)
 	s.SetOnConnStop(OnConnectionLost)
-
-	//启动本地老师端
-	//print("Start Up TClient\n")
-	//_,err := os.StartProcess("StartTClient.bat",nil, &os.ProcAttr{Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}})
-	//if err != nil {
-	//	print("TClient Started Error\n")
-	//}else {
-	//	print("TClient Started Succ\n")
-	//}
-	test()
 	//注册路由
-
-	//登录路由
-	s.AddRouter(1, &api.AccountApi{})
-	//作品路由
-	s.AddRouter(2, &api.WorkApi{})
-	////聊天路由
-	//s.AddRouter(2,&api.RoomApi{})
-	////课程路由
-	//s.AddRouter(3,&api.CourseApi{})
+	s.AddRouter(1, &api.AccountApi{}) //登录路由
+	s.AddRouter(2, &api.WorkApi{})    //房间
 	//启动服务
+	zlog.Debugf("6.InteractionServices run in %s , port = %d \n", utils.GlobalObject.Host, utils.GlobalObject.TCPPort)
 	s.Serve()
 
 }
 
-func test() {
+// http - services
+func GinServices() {
 
-	//RegisterWorkRecord()
-
-}
-
-func RegisterWorkRecord() int {
-	var maxUniqueId sql.NullInt32
-
-	db := utils.GlobalObject.SqliteInst.GetDB()
-	rows, _ := db.Query("select max(uniqueid) from tb_work; ")
-	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(&maxUniqueId); err == nil {
-			//allStudent.Students = append(allStudent.Students, studentInfo)
-		} else {
-			fmt.Println("RegisterWorkRecord,", err)
-		}
+	e := router.Router()
+	//e.Use(TlsHandler(8080))
+	ginHost := fmt.Sprintf("%s:%d", config.YamlConfig.App.Host, config.YamlConfig.App.GinPort)
+	fmt.Println("ginHost = ", ginHost)
+	zlog.Debugf(" GinServices run in = %s\n", ginHost)
+	err := e.Run(ginHost)
+	//err := e.RunTLS(config.YamlConfig.App.Host, "./cert/server.pem", "./cert/server.key")
+	if err != nil {
+		log.Fatalln("run err.", err)
+		return
 	}
+	//zlog.Debug("4.GinServices run in ", ginHost)
 
-	fmt.Println("maxUniqueId = ", maxUniqueId.Valid)
-	return 1
+	fmt.Println("GinServices run in ", ginHost)
 }
