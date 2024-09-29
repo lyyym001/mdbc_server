@@ -3,7 +3,7 @@
 LanServer.Path = H:\AFullProgram\winformProgram\vs2013\LClient
 
 ## 编译protobuf文件
-    cd ./MultiAtt_Demo
+    cd ./mdbc_server
     protoc --go_out=. ./pb/*.proto
 
 ## 编译本地可执行程序
