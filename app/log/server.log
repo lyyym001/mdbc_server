@@ -1,0 +1,14 @@
+2024/10/15 14:19:08 [DEBUG]server.go:94: Broadcast UdpPort = 1905
+2024/10/15 14:19:08 [DEBUG]server.go:106: 1.db init
+2024/10/15 14:19:08 [DEBUG]init.go:41: connect db success - dbName = conf/mdbc.db
+2024/10/15 14:19:08 [DEBUG]server.go:112: 2.SetupGinServer
+2024/10/15 14:19:08 [DEBUG]server.go:115: 3.SetupStunServer
+2024/10/15 14:19:08 [DEBUG]server.go:118: 4.License InteractionServices Start
+2024/10/15 14:19:08 [DEBUG]server.go:139: 6.InteractionServices run in 192.168.0.22 , port = 10106 
+2024/10/15 14:19:08 [DEBUG]server.go:155:  GinServices run in = 192.168.0.22:8080
+2024/10/15 14:19:09 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080
+2024/10/15 14:19:10 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080
+2024/10/15 14:19:11 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080
+2024/10/15 14:19:13 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080
+2024/10/15 14:19:14 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080
+2024/10/15 14:19:15 [DEBUG]world_manager.go:101: Broadcast Ip=192.168.0.22,TcpPort=10106,GinPort = 8080

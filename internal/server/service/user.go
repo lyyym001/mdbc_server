@@ -163,6 +163,7 @@ func GetUserConfig(c *gin.Context) {
 	jsonData := pb.UserConfig{
 		RtmpHost:     config.YamlConfig.Conf.RtmpHost,
 		StreamingUri: config.YamlConfig.Conf.StreamingUri,
+		RtmpChannel:  config.YamlConfig.Conf.RtmpChannel,
 	}
 	jsonBytes, err := json.Marshal(jsonData)
 	if err != nil {

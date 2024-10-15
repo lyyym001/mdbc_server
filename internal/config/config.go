@@ -18,6 +18,7 @@ type SdkConfig struct {
 type Config struct {
 	StreamingUri string `yaml:"streamingUri"`
 	RtmpHost     string `yaml:"rtmpHost"`
+	RtmpChannel  string `yaml:"rtmpChannel"`
 }
 
 type APP struct {

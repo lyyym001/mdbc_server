@@ -3,6 +3,7 @@ package pb
 type UserConfig struct {
 	StreamingUri string `json:"streamingUri"`
 	RtmpHost     string `json:"rtmpHost"`
+	RtmpChannel  string `json:"rtmpChannel"`
 }
 
 // ==============================new==================================

@@ -57,6 +57,9 @@ func (aa *DeviceApi) Handle(request ziface.IRequest) {
 	case 10007: //监控质量调整
 		aa.Handle_onRequest10007(player, request.GetData())
 		break
+	case 10008: //开启推流
+		aa.Handle_onRequest10008(player, request.GetData())
+		break
 	}
 
 }
@@ -195,4 +198,17 @@ func (aa *DeviceApi) Handle_onRequest10007(p *core.Player, data []byte) {
 		response_data.Progress = request_data.Progress
 		player.SendMsg(3, 10007, response_data)
 	}
+}
+
+// 开启结束推流
+func (aa *DeviceApi) Handle_onRequest10008(p *core.Player, data []byte) {
+	request_data := &pb.SyncPID{}
+	err := proto.Unmarshal(data, request_data)
+	if err != nil {
+		fmt.Println("proto.Unmarshal err", err)
+		return
+	}
+
+	//转发
+	core.WorldMgrObj.Toa_NoGzNoTeacher(3, 10008, request_data)
 }
