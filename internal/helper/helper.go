@@ -11,10 +11,10 @@ import (
 )
 
 type UserClaims struct {
-	Id       uint   `json:"id"`
-	Name     string `json:"name"`
-	Power    int32  `json:"power"`
-	Identify string `json:"identify"`
+	UserName    string `json:"userName"`
+	AccountType uint32 `json:"accountType"`
+	NickName    string `json:"nickName"`
+	Ip          string `json:"ip"`
 	jwt.StandardClaims
 }
 
@@ -32,12 +32,12 @@ func GetUUID() string {
 
 // GenerateToken
 // 生成 token
-func GenerateToken(id uint, name, identify string, power int32) (string, error) {
+func GenerateToken(userName string, accountType uint32, nickname string, ip string) (string, error) {
 	UserClaim := &UserClaims{
-		Id:             id,
-		Name:           name,
-		Power:          power,
-		Identify:       identify,
+		UserName:       userName,
+		AccountType:    accountType,
+		NickName:       nickname,
+		Ip:             ip,
 		StandardClaims: jwt.StandardClaims{},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, UserClaim)

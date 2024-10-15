@@ -6,6 +6,9 @@ LanServer.Path = H:\AFullProgram\winformProgram\vs2013\LClient
     cd ./mdbc_server
     protoc --go_out=. ./pb/*.proto
 
+## stun服务
+### 1.
+
 ## 编译本地可执行程序
     1. windows
         go build -o ./app/server.exe ./server.go

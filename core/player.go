@@ -1,37 +1,37 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
+	"google.golang.org/protobuf/proto"
+	"mdbc_server/internal/helper"
+	"mdbc_server/internal/models_sqlite"
 	"mdbc_server/lframework/ziface"
 	"mdbc_server/pb"
+	"net"
 	"sync"
 	"time"
 )
 
+type DeviceInfo struct {
+	Status  int32  //0-故障，1-正常
+	Ip      string //ip地址
+	Battery int32  //电池电量
+	Dir     int64  //目录是否存在
+}
+
 // 玩家对象
 type Player struct {
-
-	//RID  int32				//房间ID
-	//TID string				//老师ID
-	//CID string				//当前Player的账号，有可能是学生账号，也有可能是老师账号 如果学生跟老师cid tid相同，则是老师
-
-	//CLFlag bool				//这个用户是否是重复连接的用户
-	//SNum string				//学号
-	//PName string
-	//CourseCore float32
-	//CourseAbility string
-	//CourseSetupDate int64     	//课件开始时间记录
-	//CourseId        string    	//课程ID
-	//CourseMode      string    	//课程模式
-
 	//下面是new
 	BeatTime int    //心跳检测时间
 	UserName string //用户名
-	//UName 			string		//真实姓名
+	Status   byte   //0-未运行 1-登录服务器中 2-绑定中 3-数据获取中 4-服务器登录成功
+	UName    string //真实姓名
+	//Ip          string             //ip
 	Conn        ziface.IConnection //当前玩家的连接
-	AccountType int                //账号类型 0-学生 1-老师
+	AccountType uint32             //账号类型 0-学生 1-老师
 	PID         int32              //玩家ID
+
+	CDevice *DeviceInfo //设备信息
 
 	X float32 //平面x坐标
 	Y float32 //高度
@@ -55,200 +55,78 @@ func NewPlayer(conn ziface.IConnection) *Player {
 	PIDGen++
 	IDLock.Unlock()
 
+	tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
+
 	p := &Player{
-		PID:  ID,
-		Conn: conn,
+		PID:     ID,
+		Conn:    conn,
+		CDevice: &DeviceInfo{Ip: tcpAddr.IP.String(), Status: 0},
 		//CLFlag:false,
 	}
-
 	return p
 }
 
-// 通知错误信息 0-重复连接 1-授权未检测
-func (p *Player) LoginError(flag int) {
+func (p *Player) Bind(userToken string) {
 
-	data, _ := json.Marshal(&pb.Tcp_Info{Flag: flag})
-	p.SendMsg(1, 10002, data)
+	userClaim, err := helper.AnalyseToken(userToken)
+	if err != nil {
+		fmt.Println("tokenAnalyseError")
+		return
+	}
+	p.Status = 2
+	p.BeatTime = int(time.Now().Unix())
+	p.AccountType = userClaim.AccountType
+	p.UserName = userClaim.UserName
+	p.UName = userClaim.NickName
+	//p.CDevice.Ip = userClaim.Ip
+	fmt.Println("user Bind : UserName = ", p.UserName)
+
+	//read from db
+	if userClaim.AccountType == 0 {
+		data := new(models_sqlite.DeviceBasic)
+		err = models_sqlite.DB.Where("username = ?", userClaim.UserName).First(&data).Error
+		if err != nil {
+			fmt.Println("user read data error : from db ", err.Error())
+		} else {
+			p.CDevice.Status = data.Status
+		}
+	}
+
+	p.Status = 3
+	//发送userInfo
+	p.SendUserInfo()
+	//检测心跳
+	//go p.BroadcastPlayer()
+
 }
 
-func (p *Player) Login(account_type int, uname string, workRuning int) {
+func (p *Player) SendUserInfo() {
 
-	//fmt.Println("登录成功，" ,data)
-	//1. player赋值
-	//p.TID = data.TID
-	//p.CID = data.CID
-	p.UserName = uname
-	//p.UName = uname
-	//p.Number = number
-	//p.Code = code
-	p.AccountType = account_type
-	p.BeatTime = int(time.Now().Unix())
+	userCall := &pb.Tcp_UserInfo{
+		NickName:    p.UName,
+		AccountType: p.AccountType,
+		UserName:    p.UserName,
+	}
 
-	//回执
-	data1, _ := json.Marshal(&pb.Tcp_Info{Flag: 1, UName: uname, WorkRuning: workRuning})
-	p.SendMsg(1, 10002, data1)
+	fmt.Println("Send userInfo = ", userCall)
 
-	//2. Player加入房间(教师)
-	//RoomMgrObj.AddPlayer(p)
-
-	//如果是学生 ， 需要通知老师，学生连接上了
-	//if p.CID != p.TID {
-	//	player := RoomMgrObj.GetTPlayer(p.TID)
-	//	if player != nil {
-	//		data1,_ := json.Marshal(&pb.StudentInfo{StuUserName:p.CID,Flag:1})
-	//		//
-	//		////发送数据给客户端
-	//		player.SendMsg(1,10007, data1)
-	//	}
-	//
-	//
-	//学生增加一个心跳
-	//	go p.BroadcastPlayer()
-	//
-	//}else{
-	//
-	//	//老师进来，同步学生状态
-	//	players := RoomMgrObj.GetAllPlayers(p.TID)
-	//	if players != nil {
-	//		for _,player := range players {
-	//
-	//			data1, _ := json.Marshal(&pb.StudentInfo{StuUserName: player.CID, Flag: 1})
-	//			//
-	//			////发送数据给客户端
-	//			p.SendMsg(1, 10007, data1)
-	//		}
-	//	}
-	//}
-
-	//用户自己登录回调
-
-	//Room := RoomMgrObj.GetRoom(p.TID)
-	//if Room != nil {
-	//	data1,_ := json.Marshal(&pb.SyncLoginB{CtrlFlag:Room.CtrlFlag,Code:"success"})
-	//	////发送数据给客户端
-	//	p.SendMsg(1,10002, data1)
-	//}
-
-	//3. 测试一下数据库===============
-	//db := utils.GlobalObject.SqliteInst.GetDB()
-
-	//// (1) QUERY
-	//var username string
-	//var isTeachClose int
-	//rows, err := db.Query("select * FROM tb_user where userName = ?" , "t010001")
-	//if err != nil {
-	//	fmt.Println("Sqlite Test Query DB Err")
-	//}else {
-	//	defer rows.Close()
-	//	for rows.Next() {
-	//		if err := rows.Scan(&username, &isTeachClose); err != nil {
-	//			fmt.Println("Sqlite Test GetData DB Err")
-	//		}
-	//	}
-	//}
-	//fmt.Println("username = " , username , " isteachclose = " , isTeachClose)
-	//
-	//
-	//// (2) 更新
-	//stmt , err := db.Prepare("UPDATE tb_user SET IsTeacherClose = ? WHERE username = ?")
-	//if err != nil{
-	//	fmt.Println("Sqlite Test Update DB Err")
-	//}else {
-	//	defer stmt.Close()
-	//	result , err :=stmt.Exec(1,"t010001")
-	//	affectNum, err := result.RowsAffected()
-	//	if err != nil {
-	//		fmt.Println("Sqlite Test affect DB Err")
-	//	}
-	//	fmt.Println("update affect rows is ", affectNum)
-	//}
+	p.SendMsg(1, 10002, userCall)
+	p.Status = 4
 
 }
 
 // 告知客户端被踢了
 func (p *Player) Kicked() {
 
-	p.SendMsg(1, 10003, []byte("ok"))
+	//p.SendMsg(1, 10003, []byte("ok"))
 }
 
 // 告知客户端pID,同步已经生成的玩家ID给客户端
 func (p *Player) SyncPID() {
 
-	////组建MsgID0 proto数据
-	data1, _ := json.Marshal(&pb.SyncPID{PID: p.PID})
-	//
 	////发送数据给客户端
 	fmt.Println("SendPID To Client", p.PID)
-	p.SendMsg(1, 10001, data1)
-}
-
-// 广播玩家自己的出生地点
-func (p *Player) BroadCastStartPosition() {
-
-	//组建MsgID200 proto数据
-	msg := &pb.BroadCast{
-		PID: p.PID,
-		Pos: pb.Position{
-			X: p.X,
-			Y: p.Y,
-			Z: p.Z,
-			V: p.V,
-		},
-	}
-	data, _ := json.Marshal(msg)
-	//发送数据给客户端
-	p.SendMsg(1, 10004, data)
-}
-
-// 给当前玩家周边的(九宫格内)玩家广播自己的位置，让他们显示自己
-func (p *Player) SyncSurrounding() {
-	//1.获取玩家列表
-	players := WorldMgrObj.GetAllPlayers()
-	//for _, player := range players {
-	//	player.SendMsg(2,10002 , data)
-	//}
-	//3.1 组建MsgID200 proto数据
-	//组建MsgID200 proto数据
-	msg := &pb.BroadCast{
-		PID: p.PID,
-		Pos: pb.Position{
-			X: p.X,
-			Y: p.Y,
-			Z: p.Z,
-			V: p.V,
-		},
-	}
-	data, _ := json.Marshal(msg)
-	//3.2 每个玩家分别给对应的客户端发送200消息，显示人物
-	//告诉其他人我在哪
-	for _, player := range players {
-		if player.PID != p.PID {
-			p.SendMsg(1, 10004, data)
-		}
-	}
-
-	//4 让周围九宫格内的玩家出现在自己的视野中
-	//4.1 制作Message SyncPlayers 数据
-	var SyncPlayersMsg pb.SyncPlayers
-	var datas []pb.BroadCast
-	for _, player := range players {
-		var p = pb.BroadCast{
-			PID: player.PID,
-			Pos: pb.Position{
-				X: player.X,
-				Y: player.Y,
-				Z: player.Z,
-				V: player.V,
-			},
-		}
-		datas = append(datas, p)
-	}
-
-	//4.2 封装SyncPlayer protobuf数据
-	SyncPlayersMsg.Ps = datas
-	data1, _ := json.Marshal(SyncPlayersMsg)
-	//4.3 给当前玩家发送需要显示周围的全部玩家数据
-	p.SendMsg(1, 10004, data1)
+	p.SendMsg(1, 10001, &pb.SyncPID{PID: p.PID})
 }
 
 // 广播玩家位置移动
@@ -578,30 +456,24 @@ func (p *Player) LostConnection() {
 发送消息给客户端，
 主要是将pb的protobuf数据序列化之后发送
 */
-func (p *Player) SendMsg(msgID uint32, msgSub uint32, data []byte) {
-	//fmt.Printf("before Marshal data = %+v\n", data)
+func (p *Player) SendMsg(msgID uint32, msgSub uint32, data proto.Message) {
+	fmt.Println("SendMsgToClient,user = ", p.UserName, " MsgId = ", msgID, " msgSub = ", msgSub)
 	//将NetBody结构体序列化
 	//创建一个存放bytes字节的缓冲
-
-	//msg, err := proto.Marshal(data)
-	//if err != nil {
-	//	fmt.Println("marshal msg err: ", err)
-	//	return
-	//}
-	////fmt.Printf("after Marshal data = %+v\n", msg)
-	//
+	msg, err := proto.Marshal(data)
+	if err != nil {
+		fmt.Println("marshal msg err: ", err)
+		return
+	}
+	//fmt.Printf("after Marshal data = %+v\n", msg)
 	if p.Conn == nil {
 		fmt.Println("connection in player is nil")
 		return
 	}
-
 	//调用Zinx框架的SendMsg发包
-	if err := p.Conn.SendMsg(msgID, msgSub, data); err != nil {
+	if err := p.Conn.SendMsg(msgID, msgSub, msg); err != nil {
 		fmt.Println("Player SendMsg error !")
 		return
-	}
-	if msgSub == 20006 || msgSub == 20009 {
-		fmt.Println("[Send Msg] To Player = ", p.UserName, " MsgId = ", msgID, " MsgSub = ", msgSub, " dataLength = ", len(data), " NowDate = ", time.Now().Format("2006-01-02 15:04:05"))
 	}
 
 	return

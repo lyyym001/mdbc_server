@@ -1,8 +1,9 @@
 package api
 
 import (
-	"encoding/json"
+	"google.golang.org/protobuf/proto"
 	"mdbc_server/core"
+	"mdbc_server/lframework/zlog"
 	"mdbc_server/pb"
 
 	"fmt"
@@ -38,25 +39,33 @@ func (aa *AccountApi) Handle(request ziface.IRequest) {
 
 	switch sub {
 
-	case 10002: //登录
+	case 10002: //绑定
 		aa.Handle_onRequest10002(player, request.GetData())
+		break
+	case 10003:
+		//掉线通知
 		break
 
 	}
 
 }
 
-// /成员主动离开(离开后无法继续进入)
+// 绑定
 func (aa *AccountApi) Handle_onRequest10002(p *core.Player, data []byte) {
-	workRuning := 0
-	request_data := &pb.Tcp_Login{}
-	json.Unmarshal(data, request_data)
-	fmt.Println("[请求登录]用户名=", request_data.UserName, ",类型(0-学生，1老师)=", request_data.AccountType)
 
-	core.WorldMgrObj.Login(request_data.UserName, request_data.AccountType, p.PID)
-	if core.WorldMgrObj.MScene != nil && core.WorldMgrObj.MScene.Running {
-		workRuning = 1
+	request_data := &pb.Tcp_Bind{}
+	err := proto.Unmarshal(data, request_data)
+	if err != nil {
+		fmt.Println("proto.Unmarshal err", err)
+		return
 	}
-	p.Login(request_data.AccountType, request_data.UserName, workRuning)
+
+	//1. 先绑定数据给玩家
+	p.CDevice.Dir = request_data.DirVersion
+	p.Bind(request_data.UserToken)
+	fmt.Println("bind ", p.UserName)
+	zlog.Debugf("Bind UserName = %s , AccountType = %d , Pid = %d", p.UserName, p.AccountType, p.PID)
+	//2. 绑定玩家到世界
+	core.WorldMgrObj.BindPlayer(p)
 
 }

@@ -9,16 +9,15 @@ import (
 var YamlConfig SdkConfig
 
 type SdkConfig struct {
-	App   APP    `yaml:"app"`
-	Mysql MYSQL  `yaml:"mysql"`
-	Conf  Config `yaml:"conf"`
+	App    APP    `yaml:"app"`
+	Mysql  MYSQL  `yaml:"mysql"`
+	Conf   Config `yaml:"conf"`
+	Sqlite SQLITE `yaml:"sqlite"`
 }
 
 type Config struct {
-	Blood     int32             `yaml:"blood"`
-	ReadyTime int32             `yaml:"readyTime"`
-	HList     map[string]string `yaml:"hList"`
-	LList     map[string]string `yaml:"lList"`
+	StreamingUri string `yaml:"streamingUri"`
+	RtmpHost     string `yaml:"rtmpHost"`
 }
 
 type APP struct {
@@ -26,7 +25,9 @@ type APP struct {
 	Host           string `yaml:"host"`
 	Name           string `yaml:"name"`
 	Port           int    `yaml:"port"`
+	UdpPort        int    `yaml:"udpPort"`
 	GinPort        int    `yaml:"ginPort"`
+	StunPort       int    `yaml:"stunPort"`
 	MaxConn        int    `yaml:"maxConn"`
 	WorkerPoolSize uint32 `yaml:"workerPoolSize"`
 	LogFile        string `yaml:"logFile"`
@@ -34,6 +35,10 @@ type APP struct {
 }
 
 type MYSQL struct {
+	Dns string `yaml:"dns"`
+}
+
+type SQLITE struct {
 	Dns string `yaml:"dns"`
 }
 
@@ -55,8 +60,8 @@ func Read() bool {
 		//fmt.Println("yamlConfig:ApiSecret=", YamlConfig.Livekit.ApiCert)
 		//fmt.Println("yamlConfig.Host=", YamlConfig.Livekit.Host)
 		fmt.Println("Conf,Host=", YamlConfig.App.Host)
-		fmt.Println("Conf,红方=", YamlConfig.Conf.HList)
-		fmt.Println("Conf,蓝方=", YamlConfig.Conf.LList)
+		//fmt.Println("Conf,红方=", YamlConfig.Conf.HList)
+		//fmt.Println("Conf,蓝方=", YamlConfig.Conf.LList)
 		//fmt.Println("yamlConfig.Mysql.Dns=", YamlConfig.Mysql.Dns)
 		return true
 	}

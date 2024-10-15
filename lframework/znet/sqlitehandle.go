@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	_ "mdbc_server/lframework/git/go-sqlite3-master"
 	"time"
 )
 

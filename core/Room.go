@@ -1,15 +1,14 @@
 package core
 
 import (
-	"mdbc_server/pb"
 	"sync"
 )
 
 type Room struct {
-	RID        int32  //房间ID
-	TID        string //老师ID
-	TPID       int32  //老师的PID
-	AllCourses []pb.Sync_LoginTeacher_Info
+	RID  int32  //房间ID
+	TID  string //老师ID
+	TPID int32  //老师的PID
+	//AllCourses []pb.Sync_LoginTeacher_Info
 	ClientSNum map[string]int    //学生学号记录
 	Players    map[int32]*Player //当前在线的玩家集合
 	pLock      sync.RWMutex      //保护Players的互斥读写机制

@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"log"
+	"mdbc_server/core"
 	"mdbc_server/internal/config"
 	"mdbc_server/internal/helper"
 	"mdbc_server/internal/models"
+	"mdbc_server/internal/models_sqlite"
 	"mdbc_server/pb"
 	"net/http"
+	"strings"
 )
 
 func UserRegister(c *gin.Context) {
@@ -68,33 +70,15 @@ func UserLogin(c *gin.Context) {
 		})
 		return
 	}
-	if in.Username == "" || in.Password == "" {
+	if in.Username == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"code": -1,
 			"msg":  "必填信息为空",
 		})
 		return
 	}
-	in.Password = helper.GetMd5(in.Password)
 
-	data := new(models.UserBasic)
-	err = models.DB.Where("username = ? AND password = ? ", in.Username, in.Password).First(&data).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusOK, gin.H{
-				"code": -1,
-				"msg":  "用户名或密码错误",
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"code": -1,
-			"msg":  "Get UserBasic Error:" + err.Error(),
-		})
-		return
-	}
-
-	token, err := helper.GenerateToken(data.ID, data.Username, data.Identify, data.AccountType)
+	token, err := helper.GenerateToken(in.Username, in.AccountType, in.NickName, in.Ip)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": -1,
@@ -102,10 +86,50 @@ func UserLogin(c *gin.Context) {
 		})
 		return
 	}
+
+	//insertUsers
+	if in.AccountType == 1 && len(in.Members) > 0 {
+		//老师
+		fmt.Println("老师删除不存在的users", in.Members)
+		//var dd []models_sqlite.DeviceBasic
+		models_sqlite.DB.Where("username not in (?) ", in.Members).Unscoped().Delete(&models_sqlite.DeviceBasic{})
+
+		//写入设备清单
+		devices := strings.Split(in.Members, ",")
+		for _, value := range devices {
+			u := models_sqlite.DeviceBasic{
+				Username: value,
+				Status:   1,
+			}
+			if err := models_sqlite.DB.Create(&u).Where("username != ", value).Error; err != nil {
+				fmt.Println("insert device error")
+			}
+		}
+
+		//写入目录清单
+		var count int64
+		models_sqlite.DB.Model(&models_sqlite.DirBasic{}).Count(&count)
+		fmt.Println("count = ", count)
+		if count == 0 && in.Dirs != nil && len(in.Dirs) > 0 {
+			for _, value := range in.Dirs {
+				u := models_sqlite.DirBasic{
+					Did:   value.Did,
+					Sort:  value.Sort,
+					DName: value.DName,
+				}
+				if err := models_sqlite.DB.Create(&u).Where("did != ", value.Did).Error; err != nil {
+					fmt.Println("insert device error")
+				}
+			}
+		}
+
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"data": token,
 	})
+
 }
 
 func GetUserConfig(c *gin.Context) {
@@ -137,8 +161,8 @@ func GetUserConfig(c *gin.Context) {
 	//}
 
 	jsonData := pb.UserConfig{
-		Blood:     config.YamlConfig.Conf.Blood,
-		ReadyTime: config.YamlConfig.Conf.ReadyTime,
+		RtmpHost:     config.YamlConfig.Conf.RtmpHost,
+		StreamingUri: config.YamlConfig.Conf.StreamingUri,
 	}
 	jsonBytes, err := json.Marshal(jsonData)
 	if err != nil {
@@ -146,6 +170,30 @@ func GetUserConfig(c *gin.Context) {
 	}
 	jsonString := string(jsonBytes)
 
+	c.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": jsonString,
+	})
+}
+
+func GetUserStatus(c *gin.Context) {
+
+	var ds UserListResponse
+	//获取成员
+	userList := core.WorldMgrObj.GetAllPlayers()
+	for _, user := range userList {
+		if user.CDevice.Status == 1 {
+			ds.Us = append(ds.Us, user.UserName)
+		}
+	}
+
+	//fmt.Println("在线设备列表(不包含故障)=", ds.Us)
+
+	jsonBytes, err := json.Marshal(ds)
+	if err != nil {
+		log.Fatal(err)
+	}
+	jsonString := string(jsonBytes)
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"data": jsonString,

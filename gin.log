@@ -1,0 +1,30 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /ping                     --> mdbc_server/internal/server/router.Router.func1 (3 handlers)
+[GIN-debug] POST   /user/register            --> mdbc_server/internal/server/service.UserRegister (4 handlers)
+[GIN-debug] POST   /user/login               --> mdbc_server/internal/server/service.UserLogin (4 handlers)
+[GIN-debug] POST   /auth/user/info           --> mdbc_server/internal/server/service.GetUserConfig (5 handlers)
+[GIN-debug] POST   /auth/device/list         --> mdbc_server/internal/server/service.GetDeviceStatus (5 handlers)
+[GIN-debug] POST   /auth/device/detail       --> mdbc_server/internal/server/service.GetDeviceDetail (5 handlers)
+[GIN-debug] POST   /auth/dir/list            --> mdbc_server/internal/server/service.GetDirStatus (5 handlers)
+[GIN-debug] POST   /auth/dir/altername       --> mdbc_server/internal/server/service.SetDirName (5 handlers)
+[GIN-debug] POST   /auth/dir/create          --> mdbc_server/internal/server/service.DirCreate (5 handlers)
+[GIN-debug] POST   /auth/dir/delete          --> mdbc_server/internal/server/service.DirDelete (5 handlers)
+[GIN-debug] POST   /auth/course/changedir    --> mdbc_server/internal/server/service.CourseChangeDir (5 handlers)
+[GIN-debug] POST   /auth/course/shoucang     --> mdbc_server/internal/server/service.CourseShoucang (5 handlers)
+[GIN-debug] POST   /auth/course/shoucanglist --> mdbc_server/internal/server/service.GetShoucang (5 handlers)
+[GIN-debug] POST   /auth/course/record       --> mdbc_server/internal/server/service.CourseRecord (5 handlers)
+[GIN-debug] POST   /auth/course/recordlist   --> mdbc_server/internal/server/service.GetRecord (5 handlers)
+[GIN-debug] POST   /auth/user/online         --> mdbc_server/internal/server/service.GetUserStatus (5 handlers)
+[GIN-debug] POST   /auth/work/recordlist     --> mdbc_server/internal/server/service.WorkList (5 handlers)
+[GIN-debug] POST   /auth/work/recordscore    --> mdbc_server/internal/server/service.WorkScore (5 handlers)
+[GIN-debug] POST   /auth/work/recorddetail   --> mdbc_server/internal/server/service.WorkDetail (5 handlers)
+[GIN-debug] POST   /auth/work/record         --> mdbc_server/internal/server/service.WorkRecord (5 handlers)
+[GIN-debug] POST   /auth/work/status         --> mdbc_server/internal/server/service.WorkStatus (5 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on 192.168.0.22:8080

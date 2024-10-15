@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"mdbc_server/pb"
 	"os"
 )
 
@@ -69,31 +68,6 @@ func (g *Scenes) Reload(file string) {
 	//}
 
 	fmt.Println("2.SceneConfigInited")
-}
-
-func (g *Scenes) ComputePos(sceneID string) pb.Position {
-	var Pos pb.Position
-
-	//Pos.Y = g.S[sceneID].Position.Y
-	//if g.S[sceneID].BornRadius!=0 {
-	//	rand.Seed(int64(time.Now().Nanosecond()))
-	//	fx := -g.S[sceneID].BornRadius + rand.Float32()*(g.S[sceneID].BornRadius*2)
-	//	Pos.X = g.S[sceneID].Position.X + fx
-	//	fz := -g.S[sceneID].BornRadius + rand.Float32()*(g.S[sceneID].BornRadius*2)
-	//	Pos.Z = g.S[sceneID].Position.Z + fz
-	//}else {
-	//	Pos.X = g.S[sceneID].Position.X
-	//	Pos.Z = g.S[sceneID].Position.Z
-	//}
-	//if g.S[sceneID].RotateYRandom == 1 {
-	//	rand.Seed(int64(time.Now().Nanosecond()))
-	//	fv := 0 + rand.Float32()*(360)
-	//	Pos.V = fv
-	//}else {
-	//	Pos.V = g.S[sceneID].Position.V
-	//}
-
-	return Pos
 }
 
 /*

@@ -3,7 +3,10 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"google.golang.org/protobuf/proto"
+	"mdbc_server/internal/config"
 	"mdbc_server/lframework/utils"
+	"mdbc_server/lframework/zlog"
 	"mdbc_server/pb"
 	"net"
 	"sync"
@@ -27,14 +30,16 @@ type SceneInfo struct {
 当前游戏世界的总管理模块
 */
 type WorldManager struct {
-	AoiMgr    *AOIManager       //当前世界地图的AOI规划管理器
-	Players   map[int32]*Player //当前在线的玩家集合
-	PMs       map[string]int32  //记录登录的玩家，防止重复登录,map[UserName]Pid
-	pLock     sync.RWMutex      //保护Players的互斥读写机制
-	AppID     string            //用户登录标识，无此标识则不允许登录
-	TUserName string            //老师账号
-	TUid      int32             //老师UID
-	MScene    *SceneInfo        //当前场景状态
+	AoiMgr     *AOIManager       //当前世界地图的AOI规划管理器
+	Players    map[int32]*Player //当前在线的玩家集合
+	PMs        map[string]int32  //记录登录的玩家，防止重复登录,map[UserName]Pid
+	pLock      sync.RWMutex      //保护Players的互斥读写机制
+	AppID      string            //用户登录标识，无此标识则不允许登录
+	TUserName  string            //老师账号
+	TUid       int32             //老师UID
+	AutoStatus int32             //控制状态 0-未控制 1-控制
+	DirVersion int64             //当前目录版本
+	MScene     *SceneInfo        //当前场景状态
 }
 
 // 提供一个对外的世界管理模块句柄
@@ -48,6 +53,15 @@ func init() {
 		PMs:     make(map[string]int32),
 		MScene:  &SceneInfo{SceneID: "", Mode: 1, MainCtroller: "", Running: false},
 	}
+
+	//// 2.读取系统状态
+	//sData := &models_sqlite.SysBasic{}
+	//err := models_sqlite.DB.Where("sid = ?", 1).First(sData).Error
+	//if err == nil {
+	//	//设置状态
+	//	WorldMgrObj.DirVersion = sData.DirVersion
+	//}
+
 }
 
 // 提供添加一个玩家的的功能，将玩家添加进玩家信息表Players
@@ -80,18 +94,11 @@ func (wm *WorldManager) BroadcastNet() {
 }
 
 func SendUdpBroadcastToAll() {
-	//fmt.Println("SendUdpBroadcast To Student tid = ",tid)
-	//log.Println("SendUdpBroadcast To Student")
-	//utils.GlobalObject.Host
-	//laddrStu := net.UDPAddr{
-	//	IP:   net.ParseIP(utils.GlobalObject.Host),
-	//	Port: utils.GlobalObject.UdpPort,
-	//}
-
 	var sData pb.Sync_Hello
 	sData.Ip = utils.GlobalObject.Host
 	sData.Port = utils.GlobalObject.TCPPort
-
+	sData.GinPort = config.YamlConfig.App.GinPort
+	zlog.Debugf("Broadcast Ip=%s,TcpPort=%d,GinPort = %d", sData.Ip, sData.Port, sData.GinPort)
 	// 这里设置接收者的IP地址为广播地址
 	raddrStu := net.UDPAddr{
 		IP:   net.IPv4(255, 255, 255, 255),
@@ -111,6 +118,49 @@ func SendUdpBroadcastToAll() {
 }
 
 // 提供添加一个玩家的的功能，将玩家添加进玩家信息表Players
+func (wm *WorldManager) BindPlayer(player *Player) {
+	//将player添加到 世界管理器中
+	wm.pLock.Lock()
+
+	if _, ok := wm.Players[player.PID]; ok {
+
+		//3. 记录真实玩家(已经发生登录的玩家)
+		if _, has := wm.PMs[player.UserName]; has {
+			fmt.Println("已经有相同账号记录在服务器")
+			//1. 有可能被顶号
+			//2. 有可能重复绑定
+			// 暂时不处理
+		}
+		wm.PMs[player.UserName] = player.PID
+
+		if player.AccountType == 1 {
+			//记录老师状态
+			wm.TUserName = player.UserName
+			wm.TUid = player.PID
+			//fmt.Println("[记录老师状态]")
+		}
+
+		//检测作品成员列表
+		//if wm.MScene.Running {
+		//	if _, ok := wm.MScene.Players[username]; ok {
+		//		//delete(wm.MScene.Players,pID)
+		//		wm.MScene.Players[username] = 1
+		//	}
+		//}
+
+	}
+
+	wm.pLock.Unlock()
+
+	fmt.Println("Players = ", wm.PMs)
+
+	//wm.PrintUserList()
+
+	//将player 添加到AOI网络规划中
+	//wm.AoiMgr.AddToGrIDByPos(int(player.PID), player.X, player.Z)
+}
+
+// 提供添加一个玩家的的功能，将玩家添加进玩家信息表Players
 func (wm *WorldManager) AddPlayer(player *Player) {
 	//将player添加到 世界管理器中
 	wm.pLock.Lock()
@@ -122,50 +172,66 @@ func (wm *WorldManager) AddPlayer(player *Player) {
 	//wm.AoiMgr.AddToGrIDByPos(int(player.PID), player.X, player.Z)
 }
 
-// username 用户名
-// accountType 账号类型 0-学生 1-老师
-func (wm *WorldManager) Login(username string, accountType int, uid int32) {
+// 开启多人课件
+func (wm *WorldManager) SetupMScene(cid string, cType int32, mode int32) *pb.Tcp_Members {
 
-	//将player添加到 世界管理器中
-	wm.pLock.Lock()
-	//wm.Players[player.PID] = player
-	//wm.PMs[player.CID] = true
-	if _, ok := wm.PMs[username]; ok {
-		fmt.Println("[重复登录]username=", username, ",原pid=", wm.PMs[username], ",现pid=", uid)
-		if wm.PMs[username] == uid {
-			fmt.Println("pid重复了")
-		} else {
-			p := wm.GetPlayerByPID(uid)
-			//旧的句柄释放掉
-			if p != nil {
-				//重复登录踢掉之前的
-				fmt.Println("重复登录踢掉之前的")
-				p.Kicked()
-				wm.LostConnection(wm.PMs[username], username, 1)
-				p.LostConnection()
+	// 1. 初始化数据
+	if wm.MScene != nil {
+		wm.MScene.Players = make(map[string]int32)
+		wm.MScene.JHObjects = make(map[int]*JHObject)
+		wm.MScene.Questions = make(map[int]int32)
+		wm.MScene.Steps = make(map[int]*Step)
+		wm.MScene.TakeObjects = make(map[int]int32)
+		wm.MScene.MainCtroller = "0" //默认老师作为主控
+		wm.MScene.Running = true
+	}
+	// 2. 封装用户(在线无故障的)
+	call := &pb.Tcp_Members{}
+	for username, pid := range wm.PMs {
+		if p, ok := wm.Players[pid]; ok {
+			if p.CDevice.Status == 1 {
+				wm.MScene.Players[username] = 0 //0-未准备
+				call.Ms = append(call.Ms, username)
 			}
 		}
-		//rcode = false
+	}
+	return call
+}
 
-	}
-	if accountType == 1 {
-		//记录老师状态
-		wm.TUserName = username
-		wm.TUid = uid
-		//fmt.Println("[记录老师状态]")
-	}
-	//用户加到世界列表
-	wm.PMs[username] = uid
-	//检测作品成员列表
-	if wm.MScene.Running {
-		if _, ok := wm.MScene.Players[username]; ok {
-			//delete(wm.MScene.Players,pID)
-			wm.MScene.Players[username] = 1
+// 课件资源准备完成
+func (wm *WorldManager) ReadyMScene(userName string) bool {
+
+	// 1. 初始化数据
+	if wm.MScene != nil && wm.MScene.Running {
+
+		if len(wm.MScene.Players) == 0 && userName == "teacher" {
+			return true
 		}
-	}
-	wm.pLock.Unlock()
 
-	wm.PrintUserList()
+		if _, ok := wm.MScene.Players[userName]; ok {
+			wm.MScene.Players[userName] = 1
+
+			for _, state := range wm.MScene.Players {
+				if state == 0 {
+					return false
+				}
+			}
+			return true
+		}
+
+	}
+
+	return false
+}
+
+// 结束课件
+func (wm *WorldManager) CloseMScene() {
+
+	// 1. 初始化数据
+	if wm.MScene != nil {
+		wm.MScene.MainCtroller = "0" //默认老师作为主控
+		wm.MScene.Running = false
+	}
 
 }
 
@@ -218,7 +284,7 @@ func (wm *WorldManager) ChangeMainCtroller(code int) bool {
 				p := wm.GetPlayerByPID(uid)
 				if p != nil {
 					fmt.Println("[离线重新指定主控]新主控=", username)
-					p.SendMsg(2, 10008, []byte("ok"))
+					p.SendMsg(2, 10008, &pb.Tcp_Info{Code: 200})
 				}
 				return true
 			}
@@ -249,7 +315,7 @@ func (wm *WorldManager) CheckOver(code int) bool {
 }
 
 // 世界同步给所有参与人的消息
-func (wm *WorldManager) WorldToa(msgID uint32, msgSub uint32, data []byte) {
+func (wm *WorldManager) WorldToa(msgID uint32, msgSub uint32, data proto.Message) {
 
 	for _, player := range wm.Players {
 		if player != nil {
@@ -258,8 +324,110 @@ func (wm *WorldManager) WorldToa(msgID uint32, msgSub uint32, data []byte) {
 	}
 }
 
+// 给没有故障的用户转发消息，包括老师
+func (wm *WorldManager) Toa_NoGz(msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("Toa_NoGz->消息ID=", msgID, ",SubId=", msgSub)
+	for _, pid := range wm.PMs {
+		if p, ok := wm.Players[pid]; ok {
+			if p.CDevice.Status == 1 {
+				p.SendMsg(msgID, msgSub, data)
+			}
+		}
+	}
+}
+
+// 给没有故障的用户转发消息，不包括老师
+func (wm *WorldManager) Toa_NoGzNoTeacher(msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("Toa_NoGzNoTeacher->消息ID=", msgID, ",SubId=", msgSub)
+	for _, pid := range wm.PMs {
+		if p, ok := wm.Players[pid]; ok {
+			if p.CDevice.Status == 1 && p.AccountType != 1 {
+				p.SendMsg(msgID, msgSub, data)
+			}
+		}
+	}
+}
+
+// 给没有故障的用户转发消息，不包括老师
+func (wm *WorldManager) Toa_NoGzNoTeacher_InScene(msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("Toa_NoGzNoTeacher_InScene->消息ID=", msgID, ",SubId=", msgSub)
+	if wm.MScene != nil && len(wm.MScene.Players) > 0 {
+		for username, _ := range wm.MScene.Players {
+			if pid, has := wm.PMs[username]; has {
+				if p, ok := wm.Players[pid]; ok {
+					p.SendMsg(msgID, msgSub, data)
+				}
+			}
+		}
+	}
+
+}
+
+// 给没有故障的用户转发消息，包括老师
+func (wm *WorldManager) ToTeacher(msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("ToTeacher->消息ID=", msgID, ",SubId=", msgSub)
+	username := "teacher"
+	if pid, has := wm.PMs[username]; has {
+		if p, ok := wm.Players[pid]; ok {
+			p.SendMsg(msgID, msgSub, data)
+		}
+	}
+}
+
+// 给没有故障的用户转发消息，包括老师
+func (wm *WorldManager) Toa_NoGz_InScene(msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("Toa_NoGz_InScene->消息ID=", msgID, ",SubId=", msgSub)
+	if wm.MScene != nil && len(wm.MScene.Players) > 0 {
+		for username, _ := range wm.MScene.Players {
+			if pid, has := wm.PMs[username]; has {
+				if p, ok := wm.Players[pid]; ok {
+					p.SendMsg(msgID, msgSub, data)
+				}
+			}
+		}
+	}
+
+	username := "teacher"
+	if pid, has := wm.PMs[username]; has {
+		if p, ok := wm.Players[pid]; ok {
+			p.SendMsg(msgID, msgSub, data)
+		}
+	}
+}
+
+// 给没有故障的用户转发消息，包括老师
+func (wm *WorldManager) Too(un string, msgID uint32, msgSub uint32, data proto.Message) {
+
+	fmt.Println("Too->消息ID=", msgID, ",SubId=", msgSub, " un = ", un)
+	if wm.MScene != nil && len(wm.MScene.Players) > 0 {
+		for username, _ := range wm.MScene.Players {
+			if username != un {
+				if pid, has := wm.PMs[username]; has {
+					if p, ok := wm.Players[pid]; ok {
+						p.SendMsg(msgID, msgSub, data)
+					}
+				}
+			}
+		}
+	}
+
+	username := "teacher"
+	if username != un {
+		if pid, has := wm.PMs[username]; has {
+			if p, ok := wm.Players[pid]; ok {
+				p.SendMsg(msgID, msgSub, data)
+			}
+		}
+	}
+}
+
 // 作品内同步给所有参与人的消息
-func (wm *WorldManager) Toa(msgID uint32, msgSub uint32, data []byte) {
+func (wm *WorldManager) Toa(msgID uint32, msgSub uint32, data proto.Message) {
 
 	//fmt.Println("Toa->消息ID=",msgID,",SubId=",msgSub)
 	//wm.PrintUserList()
@@ -280,28 +448,28 @@ func (wm *WorldManager) Toa(msgID uint32, msgSub uint32, data []byte) {
 	}
 }
 
-// 作品内同步给其他参与人的消息
-func (wm *WorldManager) Too(uid int32, msgID uint32, msgSub uint32, data []byte) {
-	//fmt.Println("Too->消息ID=",msgID,",SubId=",msgSub)
-
-	if wm.MScene != nil {
-		if wm.MScene.Running {
-			players := wm.MScene.Players
-			if players != nil && len(players) > 0 {
-				for username, _ := range players {
-					p := wm.GetPlayerByUserName(username)
-					if p != nil {
-						if p.PID != uid {
-							//if state == 1 {
-							p.SendMsg(msgID, msgSub, data)
-							//}
-						}
-					}
-				}
-			}
-		}
-	}
-}
+//// 作品内同步给其他参与人的消息
+//func (wm *WorldManager) Too(uid int32, msgID uint32, msgSub uint32, data proto.Message) {
+//	//fmt.Println("Too->消息ID=",msgID,",SubId=",msgSub)
+//
+//	if wm.MScene != nil {
+//		if wm.MScene.Running {
+//			players := wm.MScene.Players
+//			if players != nil && len(players) > 0 {
+//				for username, _ := range players {
+//					p := wm.GetPlayerByUserName(username)
+//					if p != nil {
+//						if p.PID != uid {
+//							//if state == 1 {
+//							p.SendMsg(msgID, msgSub, data)
+//							//}
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+//}
 
 // 从玩家信息表中移除一个玩家
 func (wm *WorldManager) RemovePlayer(pID int32) {
@@ -441,12 +609,12 @@ func (wm *WorldManager) HasLogined(cid string) bool {
 // ==================业务====================
 func (wm *WorldManager) RegisterObject(data *pb.TCP_RegisterObj) {
 
-	if _, ok := wm.MScene.JHObjects[data.ObjId]; !ok {
+	if _, ok := wm.MScene.JHObjects[int(data.ObjId)]; !ok {
 		obj := &JHObject{
-			ObjId:           data.ObjId,
-			InteractiveType: data.InteractiveType,
-			Tb:              data.Tb,
-			Visiable:        data.Visiable,
+			ObjId:           int(data.ObjId),
+			InteractiveType: int(data.InteractiveType),
+			Tb:              int(data.Tb),
+			Visiable:        int(data.Visiable),
 			X:               data.X,
 			Y:               data.Y,
 			Z:               data.Z,
@@ -454,28 +622,28 @@ func (wm *WorldManager) RegisterObject(data *pb.TCP_RegisterObj) {
 			RY:              data.RY,
 			RZ:              data.RZ,
 		}
-		wm.MScene.JHObjects[data.ObjId] = obj
+		wm.MScene.JHObjects[int(data.ObjId)] = obj
 	}
 
 }
 
 func (wm *WorldManager) UpdateObjectPos(data *pb.TCP_TbObj) {
 
-	if _, ok := wm.MScene.JHObjects[data.ObjId]; ok {
-		wm.MScene.JHObjects[data.ObjId].X = data.X
-		wm.MScene.JHObjects[data.ObjId].Y = data.Y
-		wm.MScene.JHObjects[data.ObjId].Z = data.Z
-		wm.MScene.JHObjects[data.ObjId].RX = data.RX
-		wm.MScene.JHObjects[data.ObjId].RY = data.RY
-		wm.MScene.JHObjects[data.ObjId].RZ = data.RZ
+	if _, ok := wm.MScene.JHObjects[int(data.ObjId)]; ok {
+		wm.MScene.JHObjects[int(data.ObjId)].X = data.X
+		wm.MScene.JHObjects[int(data.ObjId)].Y = data.Y
+		wm.MScene.JHObjects[int(data.ObjId)].Z = data.Z
+		wm.MScene.JHObjects[int(data.ObjId)].RX = data.RX
+		wm.MScene.JHObjects[int(data.ObjId)].RY = data.RY
+		wm.MScene.JHObjects[int(data.ObjId)].RZ = data.RZ
 	}
 
 }
 
 func (wm *WorldManager) UpdateObjectStatus(data *pb.Tcp_ObjectStatus) {
 
-	if _, ok := wm.MScene.JHObjects[data.ObjId]; ok {
-		wm.MScene.JHObjects[data.ObjId].Visiable = data.Status
+	if _, ok := wm.MScene.JHObjects[int(data.ObjId)]; ok {
+		wm.MScene.JHObjects[int(data.ObjId)].Visiable = int(data.Status)
 	}
 
 }
@@ -485,12 +653,12 @@ func (wm *WorldManager) RegisterStep(data *pb.Tcp_Step) {
 	//_id := wm.MScene.GlobalStepId+1
 	//wm.MScene.GlobalStepId = _id
 	obj := &Step{
-		StepId:    data.StepId,
-		StepState: data.StepState,
+		StepId:    int(data.StepId),
+		StepState: int(data.StepState),
 		StepDate:  data.StepDate,
 		UName:     data.UName,
 	}
-	wm.MScene.Steps[data.StepId] = obj
+	wm.MScene.Steps[int(data.StepId)] = obj
 
 }
 
@@ -506,22 +674,19 @@ func (wm *WorldManager) WorkFinish(code int) {
 
 // 个人离开活动
 // _state //0-中途离开 1-结束离开(结束离开如果是多人场景不重新指定主控)
-func (wm *WorldManager) WorkLeave(pID int32, _state int) {
+func (wm *WorldManager) WorkLeave(userName string, _state int) {
 
 	//移除参与玩家
 	if wm.MScene != nil && wm.MScene.Running {
-		p := wm.GetPlayerByPID(pID)
-		if p != nil {
-			fmt.Println("[用户离开作品]pid=", pID, ",username=", p.UserName)
-			if _, ok := wm.MScene.Players[p.UserName]; ok {
-				delete(wm.MScene.Players, p.UserName)
-			}
+		fmt.Println("[用户离开作品]userName=", userName)
+		if _, ok := wm.MScene.Players[userName]; ok {
+			delete(wm.MScene.Players, userName)
 		}
 
 		if _state != 1 {
 			//中途离开的话需要检测
-			if wm.MScene.MainCtroller == p.UserName {
-				fmt.Println("[中途离开重新指定主控]原主控=", p.UserName)
+			if wm.MScene.MainCtroller == userName {
+				fmt.Println("[中途离开重新指定主控]原主控=", userName)
 				wm.ChangeMainCtroller(1)
 			} else {
 				wm.CheckOver(1)
